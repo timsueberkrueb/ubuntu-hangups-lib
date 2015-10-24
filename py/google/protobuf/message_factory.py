@@ -28,6 +28,8 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#PY25 compatible for GAE.
+#
 # Copyright 2012 Google Inc. All Rights Reserved.
 
 """Provides a factory class for generating dynamic messages.
@@ -41,6 +43,7 @@ my_proto_instance = message_classes['some.proto.package.MessageName']()
 
 __author__ = 'matthewtoia@google.com (Matt Toia)'
 
+import sys  ##PY25
 from google.protobuf import descriptor_database
 from google.protobuf import descriptor_pool
 from google.protobuf import message
@@ -72,7 +75,8 @@ class MessageFactory(object):
     """
     if descriptor.full_name not in self._classes:
       descriptor_name = descriptor.name
-      if str is bytes:  # PY2
+      if sys.version_info[0] < 3:  ##PY25
+##!PY25      if str is bytes:  # PY2
         descriptor_name = descriptor.name.encode('ascii', 'ignore')
       result_class = reflection.GeneratedProtocolMessageType(
           descriptor_name,

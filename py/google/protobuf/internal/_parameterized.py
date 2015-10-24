@@ -43,7 +43,7 @@ A simple example:
        (4, 5, 9),
        (1, 1, 3))
     def testAddition(self, op1, op2, result):
-      self.assertEqual(result, op1 + op2)
+      self.assertEquals(result, op1 + op2)
 
 
 Each invocation is a separate test case and properly isolated just
@@ -60,7 +60,7 @@ or dictionaries (with named parameters):
        {'op1': 4, 'op2': 5, 'result': 9},
     )
     def testAddition(self, op1, op2, result):
-      self.assertEqual(result, op1 + op2)
+      self.assertEquals(result, op1 + op2)
 
 If a parameterized test fails, the error message will show the
 original test name (which is modified internally) and the arguments
@@ -88,7 +88,7 @@ str()):
        ('EmptyPrefix', '', 'abc', True),
        ('BothEmpty', '', '', True))
     def testStartsWith(self, prefix, string, result):
-      self.assertEqual(result, strings.startswith(prefix))
+      self.assertEquals(result, strings.startswith(prefix))
 
 Named tests also have the benefit that they can be run individually
 from the command line:
@@ -127,7 +127,7 @@ the decorator. This iterable will be used to obtain the test cases:
       c.op1, c.op2, c.result for c in testcases
     )
     def testAddition(self, op1, op2, result):
-      self.assertEqual(result, op1 + op2)
+      self.assertEquals(result, op1 + op2)
 
 
 Single-Argument Test Methods
@@ -149,13 +149,8 @@ import collections
 import functools
 import re
 import types
-try:
-  import unittest2 as unittest
-except ImportError:
-  import unittest
+import unittest
 import uuid
-
-import six
 
 ADDR_RE = re.compile(r'\<([a-zA-Z0-9_\-\.]+) object at 0x[a-fA-F0-9]+\>')
 _SEPARATOR = uuid.uuid1().hex
@@ -175,7 +170,7 @@ def _StrClass(cls):
 
 def _NonStringIterable(obj):
   return (isinstance(obj, collections.Iterable) and not
-          isinstance(obj, six.string_types))
+          isinstance(obj, str))
 
 
 def _FormatParameterList(testcase_params):
@@ -263,9 +258,7 @@ def _ModifyClass(class_object, testcases, naming_type):
       'Cannot add parameters to %s,'
       ' which already has parameterized methods.' % (class_object,))
   class_object._id_suffix = id_suffix = {}
-  # We change the size of __dict__ while we iterate over it, 
-  # which Python 3.x will complain about, so use copy().
-  for name, obj in class_object.__dict__.copy().items():
+  for name, obj in list(class_object.__dict__.items()):
     if (name.startswith(unittest.TestLoader.testMethodPrefix)
         and isinstance(obj, types.FunctionType)):
       delattr(class_object, name)
@@ -353,7 +346,7 @@ class TestGeneratorMetaclass(type):
 
   def __new__(mcs, class_name, bases, dct):
     dct['_id_suffix'] = id_suffix = {}
-    for name, obj in dct.items():
+    for name, obj in list(dct.items()):
       if (name.startswith(unittest.TestLoader.testMethodPrefix) and
           _NonStringIterable(obj)):
         iterator = iter(obj)
@@ -373,7 +366,7 @@ def _UpdateClassDictForParamTestCase(dct, id_suffix, name, iterator):
     iterator: The iterator generating the individual test cases.
   """
   for idx, func in enumerate(iterator):
-    assert callable(func), 'Test generators must yield callables, got %r' % (
+    assert isinstance(func, collections.Callable), 'Test generators must yield callables, got %r' % (
         func,)
     if getattr(func, '__x_use_name__', False):
       new_name = func.__name__
@@ -385,9 +378,8 @@ def _UpdateClassDictForParamTestCase(dct, id_suffix, name, iterator):
     id_suffix[new_name] = getattr(func, '__x_extra_id__', '')
 
 
-class ParameterizedTestCase(unittest.TestCase):
+class ParameterizedTestCase(unittest.TestCase, metaclass=TestGeneratorMetaclass):
   """Base class for test cases using the Parameters decorator."""
-  __metaclass__ = TestGeneratorMetaclass
 
   def _OriginalName(self):
     return self._testMethodName.split(_SEPARATOR)[0]

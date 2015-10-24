@@ -30,10 +30,7 @@
 
 """Dynamic Protobuf class creator."""
 
-try:
-    from collections import OrderedDict
-except ImportError:
-    from ordereddict import OrderedDict  #PY26
+import collections
 import hashlib
 import os
 
@@ -82,8 +79,8 @@ def MakeSimpleProtoClass(fields, full_name, pool=None):
   # Get a list of (name, field_type) tuples from the fields dict. If fields was
   # an OrderedDict we keep the order, but otherwise we sort the field to ensure
   # consistent ordering.
-  field_items = fields.items()
-  if not isinstance(fields, OrderedDict):
+  field_items = list(fields.items())
+  if not isinstance(fields, collections.OrderedDict):
     field_items = sorted(field_items)
 
   # Use a consistent file name that is unlikely to conflict with any imported

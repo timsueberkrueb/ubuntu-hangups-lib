@@ -28,6 +28,8 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# Needs to stay compatible with Python 2.5 due to GAE.
+#
 # Copyright 2007 Google Inc. All Rights Reserved.
 
 """Descriptors essentially contain exactly the information found in a .proto
@@ -35,8 +37,6 @@ file, in types that make this information accessible in Python.
 """
 
 __author__ = 'robinson@google.com (Will Robinson)'
-
-import six
 
 from google.protobuf.internal import api_implementation
 
@@ -75,7 +75,7 @@ else:
   DescriptorMetaclass = type
 
 
-class DescriptorBase(six.with_metaclass(DescriptorMetaclass)):
+class DescriptorBase(object, metaclass=DescriptorMetaclass):
 
   """Descriptors base class.
 
@@ -89,7 +89,6 @@ class DescriptorBase(six.with_metaclass(DescriptorMetaclass)):
         for efficiency, and also useful inside the protobuf implementation to
         avoid some bootstrapping issues.
   """
-
   if _USE_C_DESCRIPTORS:
     # The class, or tuple of classes, that are considered as "virtual
     # subclasses" of this descriptor class.

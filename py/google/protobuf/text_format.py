@@ -28,6 +28,8 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#PY25 compatible for GAE.
+#
 # Copyright 2007 Google Inc. All Rights Reserved.
 
 """Contains routines for printing protocol messages in text format."""
@@ -36,11 +38,6 @@ __author__ = 'kenton@google.com (Kenton Varda)'
 
 import io
 import re
-
-import six
-
-if six.PY3:
-  long = int
 
 from google.protobuf.internal import type_checkers
 from google.protobuf import descriptor
@@ -67,25 +64,6 @@ class Error(Exception):
 class ParseError(Error):
   """Thrown in case of ASCII parsing error."""
 
-class TextWriter(object):
-  def __init__(self, as_utf8):
-    if six.PY2:
-      self._writer = io.BytesIO()
-    else:
-      self._writer = io.StringIO()
-
-  def write(self, val):
-    if six.PY2:
-      if isinstance(val, six.text_type):
-        val = val.encode('utf-8')
-    return self._writer.write(val)
-
-  def close(self):
-    return self._writer.close()
-
-  def getvalue(self):
-    return self._writer.getvalue()
-
 
 def MessageToString(message, as_utf8=False, as_one_line=False,
                     pointy_brackets=False, use_index_order=False,
@@ -111,7 +89,7 @@ def MessageToString(message, as_utf8=False, as_one_line=False,
   Returns:
     A string of the text formatted protocol buffer message.
   """
-  out = TextWriter(as_utf8)
+  out = io.StringIO()
   PrintMessage(message, out, as_utf8=as_utf8, as_one_line=as_one_line,
                pointy_brackets=pointy_brackets,
                use_index_order=use_index_order,
@@ -135,7 +113,7 @@ def PrintMessage(message, out, indent=0, as_utf8=False, as_one_line=False,
     fields.sort(key=lambda x: x[0].index)
   for field, value in fields:
     if _IsMapEntry(field):
-      for key in sorted(value):
+      for key in value:
         # This is slow for maps with submessage entires because it copies the
         # entire tree.  Unfortunately this would take significant refactoring
         # of this file to work around.
@@ -157,6 +135,7 @@ def PrintMessage(message, out, indent=0, as_utf8=False, as_one_line=False,
                  pointy_brackets=pointy_brackets,
                  use_index_order=use_index_order,
                  float_format=float_format)
+
 
 def PrintField(field, value, out, indent=0, as_utf8=False, as_one_line=False,
                pointy_brackets=False, use_index_order=False, float_format=None):
@@ -232,7 +211,7 @@ def PrintFieldValue(field, value, out, indent=0, as_utf8=False,
       out.write(str(value))
   elif field.cpp_type == descriptor.FieldDescriptor.CPPTYPE_STRING:
     out.write('\"')
-    if isinstance(value, six.text_type):
+    if isinstance(value, str):
       out_value = value.encode('utf-8')
     else:
       out_value = value
@@ -724,7 +703,7 @@ class _Tokenizer(object):
     """
     the_bytes = self.ConsumeByteString()
     try:
-      return six.text_type(the_bytes, 'utf-8')
+      return str(the_bytes, 'utf-8')
     except UnicodeDecodeError as e:
       raise self._StringParseError(e)
 
@@ -740,7 +719,8 @@ class _Tokenizer(object):
     the_list = [self._ConsumeSingleByteString()]
     while self.token and self.token[0] in ('\'', '"'):
       the_list.append(self._ConsumeSingleByteString())
-    return b''.join(the_list)
+    return ''.encode('latin1').join(the_list)  ##PY25
+##!PY25    return b''.join(the_list)
 
   def _ConsumeSingleByteString(self):
     """Consume one token of a string literal.
@@ -834,7 +814,7 @@ def ParseInteger(text, is_signed=False, is_long=False):
     # alternate implementations where the distinction is more significant
     # (e.g. the C++ implementation) simpler.
     if is_long:
-      result = long(text, 0)
+      result = int(text, 0)
     else:
       result = int(text, 0)
   except ValueError:
