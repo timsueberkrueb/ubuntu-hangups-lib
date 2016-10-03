@@ -56,12 +56,16 @@ def build_user_conversation_list(client):
                 hangouts_pb2.GetEntityByIdRequest(
                     request_header=client.get_request_header(),
                     batch_lookup_spec=[
-                        hangouts_pb2.EntityLookupSpec(gaia_id=user_id.gaia_id)
+                        hangouts_pb2.EntityLookupSpec(
+                            gaia_id=user_id.gaia_id,
+                            create_offnetwork_gaia=True,
+                        )
                         for user_id in required_user_ids
                     ],
                 )
             )
-            required_entities = list(response.entity)
+            for entity_result in response.entity_result:
+                required_entities.extend(entity_result.entity)
         except exceptions.NetworkError as e:
             logger.warning('Failed to request missing users: {}'.format(e))
 
@@ -99,7 +103,10 @@ class Conversation(object):
         self._events_dict = {}  # {event_id: ConversationEvent}
         self._send_message_lock = asyncio.Lock()
         for event_ in events:
-            self.add_event(event_)
+            # Workaround to ignore observed events returned from
+            # syncrecentconversations.
+            if event_.event_type != hangouts_pb2.EVENT_TYPE_OBSERVED_EVENT:
+                self.add_event(event_)
 
         # Event fired when a user starts or stops typing with arguments
         # (typing_message).
@@ -165,6 +172,8 @@ class Conversation(object):
             return conversation_event.MembershipChangeEvent(event_)
         elif event_.HasField('hangout_event'):
             return conversation_event.HangoutEvent(event_)
+        elif event_.HasField('group_link_sharing_modification'):
+            return conversation_event.GroupLinkSharingModificationEvent(event_)
         else:
             return conversation_event.ConversationEvent(event_)
 
@@ -200,7 +209,7 @@ class Conversation(object):
         try:
             default_medium = medium_options[0].delivery_medium
         except IndexError:
-            logger.warning('Conversation %r has no delivery medium')
+            logger.warning('Conversation %r has no delivery medium', self.id_)
             default_medium = hangouts_pb2.DeliveryMedium(
                 medium_type=hangouts_pb2.DELIVERY_MEDIUM_BABEL
             )

@@ -15,6 +15,10 @@
   * [reparser] (https://github.com/xmikos/reparser)
   * [dateutil] (https://github.com/dateutil/dateutil)
   * [google.protobuf] (https://github.com/google/protobuf)
+  * [appdirs] (https://github.com/ActiveState/appdirs)
+  * [mechanicalsoup] (https://github.com/hickford/MechanicalSoup)
+  * [beautifulsoup4] (https://pypi.python.org/pypi/beautifulsoup4)
+
 * Remove line 1 in py/google/__init__.py. Otherwise the following permission error occurs:
 ```
   File "/opt/click.ubuntu.com/ubuntu-hangups.timsueberkrueb/0.3/lib/py/google/__init__.py", line 1, in <module>

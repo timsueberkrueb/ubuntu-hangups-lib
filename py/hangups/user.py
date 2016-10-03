@@ -1,6 +1,7 @@
 """User objects."""
 
 from collections import namedtuple
+import enum
 import logging
 
 
@@ -8,6 +9,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_NAME = 'Unknown'
 
 UserID = namedtuple('UserID', ['chat_id', 'gaia_id'])
+NameType = enum.IntEnum('NameType', dict(DEFAULT=0, NUMERIC=1, REAL=2))
 
 
 class User(object):
@@ -21,13 +23,36 @@ class User(object):
     def __init__(self, user_id, full_name, first_name, photo_url, emails,
                  is_self):
         """Initialize a User."""
+
+        if not full_name:
+            self.full_name = self.first_name = DEFAULT_NAME
+            self.name_type = NameType.DEFAULT
+        elif not any(c.isalpha() for c in full_name):
+            self.full_name = self.first_name = full_name
+            self.name_type = NameType.NUMERIC
+        else:
+            self.full_name = full_name if full_name else DEFAULT_NAME
+            self.first_name = (first_name if first_name
+                               else self.full_name.split()[0])
+            self.name_type = NameType.REAL
+
         self.id_ = user_id
-        self.full_name = full_name if full_name != '' else DEFAULT_NAME
-        self.first_name = (first_name if first_name != ''
-                           else self.full_name.split()[0])
         self.photo_url = photo_url
         self.emails = emails
         self.is_self = is_self
+
+    def upgrade_name(self, user_):
+        """Upgrade name type of user.
+
+        Google Voice participants often first appear with no name at all, and
+        then get upgraded unpredictably to numbers ("+12125551212") or names.
+        """
+        if user_.name_type > self.name_type:
+            self.full_name = user_.full_name
+            self.first_name = user_.first_name
+            self.name_type = user_.name_type
+            logging.debug('Added {} name to User "{}": {}'.format(
+                self.name_type.name.lower(), self.full_name, self))
 
     @staticmethod
     def from_entity(entity, self_user_id):
@@ -100,12 +125,19 @@ class UserList(object):
         return self._user_dict.values()
 
     def add_user_from_conv_part(self, conv_part):
-        """Add new User from ConversationParticipantData"""
+        """Add or upgrade User from ConversationParticipantData."""
         user_ = User.from_conv_part_data(conv_part, self._self_user.id_)
-        if user_.id_ not in self._user_dict:
-            logging.warning('Adding fallback User: {}'.format(user_))
+
+        existing = self._user_dict.get(user_.id_)
+        if existing is None:
+            logging.warning('Adding fallback User with {} name "{}": {}'
+                            .format(user_.name_type.name.lower(),
+                                    user_.full_name, user_))
             self._user_dict[user_.id_] = user_
-        return user_
+            return user_
+        else:
+            existing.upgrade_name(user_)
+            return existing
 
     def _on_state_update(self, state_update):
         """Receive a StateUpdate"""
